@@ -13,6 +13,11 @@ dependencies = [
     "click>=8.0.0",
 ]
 
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+]
+
 [project.scripts]
 lever-watcher = "lever_watcher.cli:cli"
 
