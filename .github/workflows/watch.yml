@@ -1,66 +1,56 @@
-# .github/workflows/watch.yml
 name: Watch Lever Jobs
 
 on:
   schedule:
-    - cron: '*/15 * * * *'  # 15分ごと
+    - cron: '*/15 * * * *'
   workflow_dispatch:
+    inputs:
+      targets_json:
+        description: 'Optional JSON array of Lever targets. Overrides LEVER_TARGETS_JSON for this run.'
+        required: false
+        type: string
+
+permissions:
+  contents: read
 
 jobs:
   watch:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
 
-      - uses: actions/setup-python@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
         with:
-          python-version: '3.12'
+          python-version-file: ".python-version"
 
-      - name: Get previous run ID
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          PREVIOUS_RUN_ID=$(gh run list \
-            --workflow "${{ github.workflow }}" \
-            --status completed \
-            --limit 1 \
-            --json databaseId \
-            --jq '.[0].databaseId')
-
-          echo "PREVIOUS_RUN_ID=$PREVIOUS_RUN_ID" >> $GITHUB_ENV
-
-      - name: Check if previous run exists
-        run: |
-          if [ -z "$PREVIOUS_RUN_ID" ] || [ "$PREVIOUS_RUN_ID" = "null" ]; then
-            echo "No previous run found"
-            exit 0
-          fi
+      - name: Install uv
+        uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
+        with:
+          enable-cache: true
+          version: "0.11.17"
 
       - name: Restore job state cache
         id: cache-restore
-        uses: actions/cache/restore@v4
+        uses: actions/cache/restore@v5
         with:
           path: ~/.lever-watcher
-          key: lever-state-${{ secrets.LEVER_COMPANY_ID }}-${{ env.PREVIOUS_RUN_ID }}
+          key: lever-state-${{ github.run_id }}
           restore-keys: |
-            lever-state-${{ secrets.LEVER_COMPANY_ID }}-
-
-      - name: Debug cache contents
-        run: cat ~/.lever-watcher/*.json || echo "No cache files found"
+            lever-state-
 
       - name: Install
-        run: pip install .
+        run: uv sync --locked
 
       - name: Check jobs
         env:
-          # SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
           DISCORD_WEBHOOK_URL: ${{ secrets.DISCORD_WEBHOOK_URL }}
-        run: |
-          lever-watcher watch ${{ secrets.LEVER_COMPANY_ID }} --query "${{ secrets.LEVER_QUERY }}" --pattern "${{ secrets.LEVER_PATTERN }}"
+          LEVER_TARGETS_JSON: ${{ inputs.targets_json || vars.LEVER_TARGETS_JSON }}
+        run: uv run lever-watcher watch-targets
 
       - name: Save job state cache
-        uses: actions/cache/save@v4
+        uses: actions/cache/save@v5
         if: always()
         with:
           path: ~/.lever-watcher
-          key: lever-state-${{ secrets.LEVER_COMPANY_ID }}-${{ github.run_id }}
+          key: lever-state-${{ github.run_id }}
