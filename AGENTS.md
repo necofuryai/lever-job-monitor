@@ -23,7 +23,7 @@ The repository is intended to be safe for public use. Do not commit personal mon
 - Use fictional companies in examples and documentation.
 - Store `DISCORD_WEBHOOK_URL` as a GitHub Actions Secret.
 - Store `LEVER_TARGETS_JSON` as a GitHub Actions Variable.
-- Keep personal instructions in `AGENTS.local.md`; it must remain untracked.
+- Keep private project-specific notes outside the public repository in an explicitly invoked local runbook or skill. Codex does not discover `AGENTS.local.md` automatically.
 
 ## Code Guidelines
 
